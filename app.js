@@ -317,47 +317,10 @@ function getTasaciones() {
 }
 
 function saveTasaciones(arr) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
-  } catch (e) {
-    console.error('Error guardando en localStorage:', e);
-    showToast('Error: no se pudo guardar. Demasiados datos.', 'error');
-    throw e;
-  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
 }
 
-// ── Compress photos for localStorage ──
-function compressPhotosForStorage(photosObj) {
-  const compressed = {};
-  const MAX_SIZE = 800; // max px
-  const QUALITY = 0.5;  // JPEG quality
-
-  for (const key of Object.keys(photosObj)) {
-    const dataUrl = photosObj[key];
-    if (!dataUrl) continue;
-
-    try {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
-
-      // Use synchronous approach - create a smaller version
-      // Since we already have the base64, we'll try to re-encode at lower quality
-      canvas.width = 1;
-      canvas.height = 1;
-
-      // For now, just store a compressed version by re-encoding
-      // We'll do proper async compression on upload instead
-      compressed[key] = dataUrl;
-    } catch (e) {
-      compressed[key] = dataUrl;
-    }
-  }
-
-  return compressed;
-}
-
-// ── Better approach: compress on upload ──
+// ── Compress image on upload ──
 function compressImage(file, callback) {
   const reader = new FileReader();
   reader.onload = (e) => {
@@ -401,7 +364,7 @@ function saveTasacion(estado) {
     acabado: val('acabado'),
     anio: val('anio'),
     kilometros: num('kilometros'),
-    fotos: compressPhotosForStorage(photos),
+    fotos: { ...photos },
     precioMin: num('precio-min'),
     estadoCarroceria: val('estado-carroceria'),
     estadoInterior: val('estado-interior'),
@@ -425,9 +388,24 @@ function saveTasacion(estado) {
   if (idx >= 0) list[idx] = tasacion;
   else list.unshift(tasacion);
 
-  saveTasaciones(list);
-  editingId = null;
+  // Try to save — if localStorage is full, try without photos
+  try {
+    saveTasaciones(list);
+  } catch (e) {
+    console.warn('localStorage full, saving without photos...');
+    tasacion.fotos = {};
+    if (idx >= 0) list[idx] = tasacion;
+    else list[0] = tasacion;
+    try {
+      saveTasaciones(list);
+      showToast('Guardado sin fotos (memoria llena). El PDF sí incluirá las fotos.', 'warning');
+    } catch (e2) {
+      showToast('Error: no se pudo guardar la tasación.', 'error');
+      return;
+    }
+  }
 
+  editingId = null;
   const label = estado === 'finalizada' ? 'Tasación finalizada' : 'Borrador guardado';
   showToast(`${label} correctamente`, 'success');
 
@@ -691,12 +669,12 @@ function exportPDF() {
   let y = margin;
 
   // ── Header
-  doc.setFillColor(99, 102, 241);
+  doc.setFillColor(62, 168, 184);
   doc.rect(0, 0, 210, 36, 'F');
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(20);
+  doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text('TASACIÓN DE VEHÍCULO', margin, 18);
+  doc.text('SYA MOTOR — TASACIÓN DE VEHÍCULO', margin, 18);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text(`Fecha: ${new Date().toLocaleDateString('es-ES')} · Tasador: ${val('tasador')}`, margin, 28);
@@ -800,10 +778,13 @@ function exportPDF() {
   doc.setFont('helvetica', 'normal');
   doc.text(`Beneficio estimado si se compra a este precio: ${formatEuro(margenMin)}`, margin, y);
 
-  y += 12;
+  y += 8;
   doc.setFontSize(7);
   doc.setTextColor(150, 150, 150);
-  doc.text('Documento generado por Tasación VO · ' + new Date().toLocaleString('es-ES'), margin, y);
+  doc.text('Documento generado por SYA Motor — Tasación VO · ' + new Date().toLocaleString('es-ES'), margin, y);
+
+  // ── PHOTOS PAGE ──
+  addPhotosToPDF(doc, photos, margin);
 
   doc.save(`tasacion_${val('matricula').toUpperCase()}_${Date.now()}.pdf`);
   showToast('PDF exportado', 'success');
@@ -819,12 +800,12 @@ function exportPDFFromSaved(id) {
   const margin = 15;
   let y = margin;
 
-  doc.setFillColor(99, 102, 241);
+  doc.setFillColor(62, 168, 184);
   doc.rect(0, 0, 210, 36, 'F');
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(20);
+  doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text('TASACIÓN DE VEHÍCULO', margin, 18);
+  doc.text('SYA MOTOR — TASACIÓN DE VEHÍCULO', margin, 18);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   const fechaPDF = new Date(t.fecha).toLocaleDateString('es-ES');
@@ -912,13 +893,77 @@ function exportPDFFromSaved(id) {
   doc.setFontSize(9);
   doc.text(`Beneficio estimado: ${formatEuro(t.beneficioEstimado)}`, margin, y);
 
-  y += 12;
+  y += 8;
   doc.setFontSize(7);
   doc.setTextColor(150, 150, 150);
-  doc.text('Documento generado por Tasación VO · ' + new Date().toLocaleString('es-ES'), margin, y);
+  doc.text('Documento generado por SYA Motor — Tasación VO · ' + new Date().toLocaleString('es-ES'), margin, y);
+
+  // ── PHOTOS PAGE ──
+  if (t.fotos) addPhotosToPDF(doc, t.fotos, margin);
 
   doc.save(`tasacion_${t.matricula}_${Date.now()}.pdf`);
   showToast('PDF exportado', 'success');
+}
+
+// ── Add photos to PDF (shared helper) ──
+function addPhotosToPDF(doc, photosObj, margin) {
+  const photoKeys = PHOTO_SLOTS.filter(s => photosObj[s.key]);
+  if (photoKeys.length === 0) return;
+
+  doc.addPage();
+  let y = margin;
+
+  doc.setFillColor(62, 168, 184);
+  doc.rect(0, 0, 210, 20, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('FOTOGRAFÍAS DEL VEHÍCULO', margin, 14);
+
+  y = 28;
+  doc.setTextColor(40, 40, 60);
+
+  const imgW = 82; // mm
+  const imgH = 60; // mm
+  const gap = 8;
+  let col = 0;
+
+  photoKeys.forEach((slot, i) => {
+    const dataUrl = photosObj[slot.key];
+    if (!dataUrl) return;
+
+    const x = margin + col * (imgW + gap);
+
+    // Check if we need a new page
+    if (y + imgH + 12 > 285) {
+      doc.addPage();
+      y = margin;
+    }
+
+    try {
+      doc.addImage(dataUrl, 'JPEG', x, y, imgW, imgH);
+      // Label below image
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'bold');
+      doc.text(slot.label, x, y + imgH + 4);
+    } catch (e) {
+      // If image fails, just add a placeholder
+      doc.setDrawColor(200, 200, 200);
+      doc.rect(x, y, imgW, imgH);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Foto no disponible', x + 20, y + imgH / 2);
+      doc.setFontSize(7);
+      doc.setFont('helvetica', 'bold');
+      doc.text(slot.label, x, y + imgH + 4);
+    }
+
+    col++;
+    if (col >= 2) {
+      col = 0;
+      y += imgH + 14;
+    }
+  });
 }
 
 // ── Modal ──
