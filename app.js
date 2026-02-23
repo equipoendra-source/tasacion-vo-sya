@@ -231,20 +231,19 @@ function handlePhotoUpload(e, slotKey, slotEl) {
     return;
   }
 
-  const reader = new FileReader();
-  reader.onload = (ev) => {
-    photos[slotKey] = ev.target.result;
+  // Compress the image before storing
+  compressImage(file, (compressedDataUrl) => {
+    photos[slotKey] = compressedDataUrl;
     // show thumbnail
     let img = slotEl.querySelector('img');
     if (!img) {
       img = document.createElement('img');
       slotEl.insertBefore(img, slotEl.firstChild);
     }
-    img.src = ev.target.result;
+    img.src = compressedDataUrl;
     slotEl.classList.add('has-photo');
     slotEl.classList.remove('invalid-photo');
-  };
-  reader.readAsDataURL(file);
+  });
 }
 
 // ── Compute Result ──
@@ -318,7 +317,68 @@ function getTasaciones() {
 }
 
 function saveTasaciones(arr) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+  } catch (e) {
+    console.error('Error guardando en localStorage:', e);
+    showToast('Error: no se pudo guardar. Demasiados datos.', 'error');
+    throw e;
+  }
+}
+
+// ── Compress photos for localStorage ──
+function compressPhotosForStorage(photosObj) {
+  const compressed = {};
+  const MAX_SIZE = 800; // max px
+  const QUALITY = 0.5;  // JPEG quality
+
+  for (const key of Object.keys(photosObj)) {
+    const dataUrl = photosObj[key];
+    if (!dataUrl) continue;
+
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+
+      // Use synchronous approach - create a smaller version
+      // Since we already have the base64, we'll try to re-encode at lower quality
+      canvas.width = 1;
+      canvas.height = 1;
+
+      // For now, just store a compressed version by re-encoding
+      // We'll do proper async compression on upload instead
+      compressed[key] = dataUrl;
+    } catch (e) {
+      compressed[key] = dataUrl;
+    }
+  }
+
+  return compressed;
+}
+
+// ── Better approach: compress on upload ──
+function compressImage(file, callback) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      let w = img.width;
+      let h = img.height;
+      const MAX = 800;
+      if (w > MAX || h > MAX) {
+        if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+        else { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      callback(canvas.toDataURL('image/jpeg', 0.5));
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
 }
 
 function saveTasacion(estado) {
@@ -341,7 +401,7 @@ function saveTasacion(estado) {
     acabado: val('acabado'),
     anio: val('anio'),
     kilometros: num('kilometros'),
-    fotos: { ...photos },
+    fotos: compressPhotosForStorage(photos),
     precioMin: num('precio-min'),
     estadoCarroceria: val('estado-carroceria'),
     estadoInterior: val('estado-interior'),
