@@ -1,0 +1,24 @@
+{
+  "name": "SYA Motor — Tasación VO",
+  "short_name": "Tasación VO",
+  "description": "Herramienta profesional de tasación de vehículos de ocasión para SYA Motor",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f3f6f9",
+  "theme_color": "#3ea8b8",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

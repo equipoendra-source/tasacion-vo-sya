@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tasación VO — Herramienta de Valoración de Vehículos de Ocasión</title>
+    <meta name="description"
+        content="Herramienta profesional de tasación de vehículos de ocasión para concesionarios. Calcula el precio máximo de compra rentable." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#3ea8b8" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Tasación VO" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+</head>
+
+<body>
+    <!-- ============== SPLASH / LANDING ============== -->
+    <div id="app">
+        <!-- HEADER -->
+        <header id="main-header">
+            <div class="header-inner">
+                <div class="logo" id="logo-home">
+                    <div class="logo-text">
+                        <span class="logo-sya">SYA</span>
+                        <span class="logo-motor">motor</span>
+                    </div>
+                    <div class="logo-separator"></div>
+                    <span class="logo-app-name">Tasación VO</span>
+                </div>
+                <nav class="header-nav">
+                    <button class="btn-nav active" id="nav-nueva" onclick="showSection('wizard')">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 3v12M3 9h12" />
+                        </svg>
+                        Nueva Tasación
+                    </button>
+                    <button class="btn-nav" id="nav-listado" onclick="showSection('listado')">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 5h12M3 9h12M3 13h8" />
+                        </svg>
+                        Historial
+                    </button>
+                </nav>
+            </div>
+        </header>
+
+        <!-- ============== WIZARD ============== -->
+        <main id="section-wizard" class="section active">
+            <!-- Progress Bar -->
+            <div class="progress-container">
+                <div class="progress-steps">
+                    <div class="progress-step active" data-step="1">
+                        <div class="step-circle">1</div>
+                        <span class="step-label">Datos</span>
+                    </div>
+                    <div class="progress-line" id="line-1-2"></div>
+                    <div class="progress-step" data-step="2">
+                        <div class="step-circle">2</div>
+                        <span class="step-label">Fotos</span>
+                    </div>
+                    <div class="progress-line" id="line-2-3"></div>
+                    <div class="progress-step" data-step="3">
+                        <div class="step-circle">3</div>
+                        <span class="step-label">Mercado</span>
+                    </div>
+                    <div class="progress-line" id="line-3-4"></div>
+                    <div class="progress-step" data-step="4">
+                        <div class="step-circle">4</div>
+                        <span class="step-label">Costes</span>
+                    </div>
+                    <div class="progress-line" id="line-4-5"></div>
+                    <div class="progress-step" data-step="5">
+                        <div class="step-circle">5</div>
+                        <span class="step-label">Resultado</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ============== STEP 1 ============== -->
+            <div class="step-panel active" id="step-1">
+                <div class="step-header">
+                    <h1>Datos del Vehículo</h1>
+                    <p class="step-subtitle">Completa todos los campos obligatorios para continuar</p>
+                </div>
+                <div class="form-card">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="tasador">Tasador <span class="required">*</span></label>
+                            <input type="text" id="tasador" placeholder="Nombre del tasador" autocomplete="off" />
+                            <span class="error-msg" id="err-tasador"></span>
+                        </div>
+                        <div class="form-group">
+                            <label for="matricula">Matrícula <span class="required">*</span></label>
+                            <input type="text" id="matricula" placeholder="1234 ABC" autocomplete="off"
+                                style="text-transform:uppercase" />
+                            <span class="error-msg" id="err-matricula"></span>
+                        </div>
+                        <div class="form-group">
+                            <label for="marca">Marca <span class="required">*</span></label>
+                            <input type="text" id="marca" placeholder="Ej: Volkswagen" autocomplete="off" />
+                            <span class="error-msg" id="err-marca"></span>
+                        </div>
+                        <div class="form-group">
+                            <label for="modelo">Modelo <span class="required">*</span></label>
+                            <input type="text" id="modelo" placeholder="Ej: Golf" autocomplete="off" />
+                            <span class="error-msg" id="err-modelo"></span>
+                        </div>
+                        <div class="form-group">
+                            <label for="acabado">Acabado / Versión <span class="required">*</span></label>
+                            <input type="text" id="acabado" placeholder="Ej: Sport 1.6 TDI" autocomplete="off" />
+                            <span class="error-msg" id="err-acabado"></span>
+                        </div>
+                        <div class="form-group">
+                            <label for="anio">Año <span class="required">*</span></label>
+                            <input type="number" id="anio" placeholder="2020" min="1990" max="2026" />
+                            <span class="error-msg" id="err-anio"></span>
+                        </div>
+                        <div class="form-group">
+                            <label for="kilometros">Kilómetros <span class="required">*</span></label>
+                            <input type="number" id="kilometros" placeholder="85000" min="0" />
+                            <span class="error-msg" id="err-kilometros"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="step-actions">
+                    <div></div>
+                    <button class="btn-primary" onclick="goToStep(2)">
+                        Continuar
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M7 4l6 5-6 5" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ============== STEP 2 ============== -->
+            <div class="step-panel" id="step-2">
+                <div class="step-header">
+                    <h1>Fotografías del Vehículo</h1>
+                    <p class="step-subtitle">Sube las 10 fotos obligatorias. JPG o PNG, máx. 10 MB cada una.</p>
+                </div>
+                <div class="form-card">
+                    <div class="photo-grid" id="photo-grid">
+                        <!-- Generated by JS -->
+                    </div>
+                    <span class="error-msg" id="err-photos"
+                        style="text-align:center;display:block;margin-top:12px;"></span>
+                </div>
+                <div class="step-actions">
+                    <button class="btn-secondary" onclick="goToStep(1)">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4l-6 5 6 5" />
+                        </svg>
+                        Atrás
+                    </button>
+                    <button class="btn-primary" onclick="goToStep(3)">
+                        Continuar
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M7 4l6 5-6 5" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ============== STEP 3 ============== -->
+            <div class="step-panel" id="step-3">
+                <div class="step-header">
+                    <h1>Análisis de Mercado y Estado</h1>
+                    <p class="step-subtitle">Introduce los precios de referencia y evalúa el estado del vehículo</p>
+                </div>
+                <div class="form-card">
+                    <h2 class="card-section-title">Precios de Mercado</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="precio-min">Precio mínimo publicado <span class="required">*</span></label>
+                            <div class="input-euro">
+                                <input type="number" id="precio-min" placeholder="12000" min="0" step="100" />
+                                <span class="euro-sign">€</span>
+                            </div>
+                            <span class="error-msg" id="err-precio-min"></span>
+                        </div>
+                        <div class="form-group" style="display:flex;align-items:flex-end;">
+                            <button class="btn-outline" id="btn-auto-ref" onclick="showAutoRefModal()"
+                                title="Integración futura">
+                                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="9" cy="9" r="7" />
+                                    <path d="M9 6v3l2 2" />
+                                </svg>
+                                Obtener referencia automática
+                            </button>
+                        </div>
+                    </div>
+
+                    <h2 class="card-section-title" style="margin-top:32px;">Estado del Vehículo</h2>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="estado-carroceria">Estado carrocería <span class="required">*</span></label>
+                            <select id="estado-carroceria">
+                                <option value="">Seleccionar…</option>
+                                <option value="excelente">Excelente</option>
+                                <option value="bueno">Bueno</option>
+                                <option value="regular">Regular</option>
+                                <option value="malo">Malo</option>
+                            </select>
+                            <span class="error-msg" id="err-estado-carroceria"></span>
+                        </div>
+                        <div class="form-group">
+                            <label for="estado-interior">Estado interior <span class="required">*</span></label>
+                            <select id="estado-interior">
+                                <option value="">Seleccionar…</option>
+                                <option value="excelente">Excelente</option>
+                                <option value="bueno">Bueno</option>
+                                <option value="regular">Regular</option>
+                                <option value="malo">Malo</option>
+                            </select>
+                            <span class="error-msg" id="err-estado-interior"></span>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="obs-interior">Observaciones interior <span
+                                    class="optional">(opcional)</span></label>
+                            <textarea id="obs-interior" rows="2" placeholder="Desgaste en asiento, manchas…"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="estado-mecanico">Estado mecánico <span class="required">*</span></label>
+                            <select id="estado-mecanico">
+                                <option value="">Seleccionar…</option>
+                                <option value="excelente">Excelente</option>
+                                <option value="bueno">Bueno</option>
+                                <option value="regular">Regular</option>
+                                <option value="malo">Malo</option>
+                            </select>
+                            <span class="error-msg" id="err-estado-mecanico"></span>
+                        </div>
+                        <div class="form-group">
+                            <label for="itv">ITV vigente <span class="required">*</span></label>
+                            <select id="itv">
+                                <option value="">Seleccionar…</option>
+                                <option value="si">Sí</option>
+                                <option value="no">No</option>
+                            </select>
+                            <span class="error-msg" id="err-itv"></span>
+                        </div>
+                        <div class="form-group full-width">
+                            <label for="obs-mecanico">Observaciones mecánica <span
+                                    class="optional">(opcional)</span></label>
+                            <textarea id="obs-mecanico" rows="2" placeholder="Ruidos, problemas detectados…"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="historial">Historial de mantenimiento <span class="required">*</span></label>
+                            <select id="historial">
+                                <option value="">Seleccionar…</option>
+                                <option value="completo">Completo</option>
+                                <option value="parcial">Parcial</option>
+                                <option value="inexistente">Inexistente</option>
+                            </select>
+                            <span class="error-msg" id="err-historial"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="step-actions">
+                    <button class="btn-secondary" onclick="goToStep(2)">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4l-6 5 6 5" />
+                        </svg>
+                        Atrás
+                    </button>
+                    <button class="btn-primary" onclick="goToStep(4)">
+                        Continuar
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M7 4l6 5-6 5" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ============== STEP 4 ============== -->
+            <div class="step-panel" id="step-4">
+                <div class="step-header">
+                    <h1>Costes y Objetivos</h1>
+                    <p class="step-subtitle">Define los costes estimados y el margen objetivo</p>
+                </div>
+                <div class="form-card">
+
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="precio-venta-obj">Precio de venta objetivo realista <span
+                                    class="required">*</span></label>
+                            <div class="input-euro">
+                                <input type="number" id="precio-venta-obj" placeholder="14500" min="0" step="100" />
+                                <span class="euro-sign">€</span>
+                            </div>
+                            <span class="error-msg" id="err-precio-venta-obj"></span>
+                        </div>
+                        <div class="form-group">
+                            <label for="coste-reparaciones">Coste estimado de reparaciones <span
+                                    class="required">*</span></label>
+                            <div class="input-euro">
+                                <input type="number" id="coste-reparaciones" placeholder="500" min="0" step="50" />
+                                <span class="euro-sign">€</span>
+                            </div>
+                            <span class="error-msg" id="err-coste-reparaciones"></span>
+                        </div>
+                        <div class="form-group">
+                            <label for="coste-reacond">Coste de reacondicionamiento <span
+                                    class="required">*</span></label>
+                            <div class="input-euro">
+                                <input type="number" id="coste-reacond" placeholder="300" min="0" step="50" />
+                                <span class="euro-sign">€</span>
+                            </div>
+                            <span class="error-msg" id="err-coste-reacond"></span>
+                        </div>
+                        <div class="form-group">
+                            <label for="gastos-admin">Gastos administrativos / garantía <span
+                                    class="required">*</span></label>
+                            <div class="input-euro">
+                                <input type="number" id="gastos-admin" placeholder="200" min="0" step="50" />
+                                <span class="euro-sign">€</span>
+                            </div>
+                            <span class="error-msg" id="err-gastos-admin"></span>
+                        </div>
+                        <div class="form-group">
+                            <label for="margen-min">Margen mínimo deseado <span class="required">*</span></label>
+                            <div class="input-euro">
+                                <input type="number" id="margen-min" placeholder="1500" min="0" step="100" />
+                                <span class="euro-sign">€</span>
+                            </div>
+                            <span class="error-msg" id="err-margen-min"></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="step-actions">
+                    <button class="btn-secondary" onclick="goToStep(3)">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4l-6 5 6 5" />
+                        </svg>
+                        Atrás
+                    </button>
+                    <button class="btn-primary" onclick="goToStep(5)">
+                        Ver Resultado
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M7 4l6 5-6 5" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ============== STEP 5 ============== -->
+            <div class="step-panel" id="step-5">
+                <div class="step-header">
+                    <h1>Resultado de la Tasación</h1>
+                    <p class="step-subtitle">Precio máximo de compra recomendado</p>
+                </div>
+
+                <!-- BIG RESULT CARD -->
+                <div class="result-hero" id="result-hero">
+                    <div class="result-icon">
+                        <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="24" cy="24" r="20" />
+                            <path d="M24 14v10l6 4" />
+                        </svg>
+                    </div>
+                    <p class="result-label">NO PAGAR MÁS DE</p>
+                    <p class="result-price" id="result-max-price">—</p>
+                    <div class="result-sub">
+                        <span>Beneficio estimado: <strong id="result-beneficio">—</strong></span>
+                    </div>
+                </div>
+
+                <!-- SUMMARY TABLE -->
+                <div class="form-card summary-card">
+                    <h2 class="card-section-title">Resumen de la Tasación</h2>
+                    <div class="summary-grid" id="summary-grid">
+                        <!-- Rendered by JS -->
+                    </div>
+                </div>
+
+                <div class="step-actions step-actions-result">
+                    <button class="btn-secondary" onclick="goToStep(4)">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4l-6 5 6 5" />
+                        </svg>
+                        Atrás
+                    </button>
+                    <div class="btn-group">
+                        <button class="btn-outline" onclick="saveTasacion('borrador')">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 15v2h12v-2M9 3v9M6 9l3 3 3-3" />
+                            </svg>
+                            Guardar borrador
+                        </button>
+                        <button class="btn-primary" onclick="saveTasacion('finalizada')">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M5 13l3 3 7-7" />
+                            </svg>
+                            Finalizar tasación
+                        </button>
+                        <button class="btn-accent" onclick="exportPDF()">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="2" width="12" height="14" rx="1" />
+                                <path d="M7 6h4M7 9h4M7 12h2" />
+                            </svg>
+                            Exportar PDF
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- ============== LISTADO ============== -->
+        <main id="section-listado" class="section">
+            <div class="listado-header">
+                <h1>Historial de Tasaciones</h1>
+                <div class="search-bar">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="9" cy="9" r="6" />
+                        <path d="M14 14l4 4" />
+                    </svg>
+                    <input type="text" id="search-input" placeholder="Buscar por matrícula, marca, modelo o tasador…"
+                        oninput="renderListado()" />
+                </div>
+            </div>
+            <div class="listado-content" id="listado-content">
+                <!-- Rendered by JS -->
+            </div>
+        </main>
+
+        <!-- ============== DETAIL VIEW ============== -->
+        <main id="section-detalle" class="section">
+            <div id="detalle-content">
+                <!-- Rendered by JS -->
+            </div>
+        </main>
+
+        <!-- ============== MODAL – Auto Ref ============== -->
+        <div class="modal-overlay" id="modal-autoref" onclick="closeAutoRefModal(event)">
+            <div class="modal-content">
+                <h2>Referencia automática</h2>
+                <p>Esta funcionalidad estará disponible próximamente. Permitirá consultar precios de mercado en tiempo
+                    real desde fuentes externas integradas.</p>
+                <button class="btn-primary"
+                    onclick="document.getElementById('modal-autoref').classList.remove('active')">Entendido</button>
+            </div>
+        </div>
+
+        <!-- TOAST -->
+        <div class="toast" id="toast"></div>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        // Registrar Service Worker para PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW registrado:', reg.scope))
+                    .catch(err => console.log('SW error:', err));
+            });
+        }
+    </script>
+</body>
+
+</html>
