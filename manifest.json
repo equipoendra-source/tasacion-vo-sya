@@ -1,6 +1,6 @@
 {
-  "name": "SYA Motor — Tasación VO",
-  "short_name": "Tasación VO",
+  "name": "SYA Motor — Tasación V.O.",
+  "short_name": "SYA V.O.",
   "description": "Herramienta profesional de tasación de vehículos de ocasión para SYA Motor",
   "start_url": "./index.html",
   "display": "standalone",
