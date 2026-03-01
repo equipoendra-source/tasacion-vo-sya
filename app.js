@@ -669,12 +669,12 @@ function exportPDF() {
   let y = margin;
 
   // ── Header
-  doc.setFillColor(62, 168, 184);
+  doc.setFillColor(CONFIG.pdfColorR, CONFIG.pdfColorG, CONFIG.pdfColorB);
   doc.rect(0, 0, 210, 36, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text('SYA MOTOR — TASACIÓN DE VEHÍCULO', margin, 18);
+  doc.text(CONFIG.pdfTitulo, margin, 18);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text(`Fecha: ${new Date().toLocaleDateString('es-ES')} · Tasador: ${val('tasador')}`, margin, 28);
@@ -781,7 +781,7 @@ function exportPDF() {
   y += 8;
   doc.setFontSize(7);
   doc.setTextColor(150, 150, 150);
-  doc.text('Documento generado por SYA Motor — Tasación VO · ' + new Date().toLocaleString('es-ES'), margin, y);
+  doc.text(`Documento generado por ${CONFIG.empresaNombre} ${CONFIG.empresaSubtitulo} — ${CONFIG.appNombre} · ` + new Date().toLocaleString('es-ES'), margin, y);
 
   // ── PHOTOS PAGE ──
   addPhotosToPDF(doc, photos, margin);
@@ -800,12 +800,12 @@ function exportPDFFromSaved(id) {
   const margin = 15;
   let y = margin;
 
-  doc.setFillColor(62, 168, 184);
+  doc.setFillColor(CONFIG.pdfColorR, CONFIG.pdfColorG, CONFIG.pdfColorB);
   doc.rect(0, 0, 210, 36, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text('SYA MOTOR — TASACIÓN DE VEHÍCULO', margin, 18);
+  doc.text(CONFIG.pdfTitulo, margin, 18);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   const fechaPDF = new Date(t.fecha).toLocaleDateString('es-ES');
@@ -896,7 +896,7 @@ function exportPDFFromSaved(id) {
   y += 8;
   doc.setFontSize(7);
   doc.setTextColor(150, 150, 150);
-  doc.text('Documento generado por SYA Motor — Tasación VO · ' + new Date().toLocaleString('es-ES'), margin, y);
+  doc.text(`Documento generado por ${CONFIG.empresaNombre} ${CONFIG.empresaSubtitulo} — ${CONFIG.appNombre} · ` + new Date().toLocaleString('es-ES'), margin, y);
 
   // ── PHOTOS PAGE ──
   if (t.fotos) addPhotosToPDF(doc, t.fotos, margin);
@@ -913,7 +913,7 @@ function addPhotosToPDF(doc, photosObj, margin) {
   doc.addPage();
   let y = margin;
 
-  doc.setFillColor(62, 168, 184);
+  doc.setFillColor(CONFIG.pdfColorR, CONFIG.pdfColorG, CONFIG.pdfColorB);
   doc.rect(0, 0, 210, 20, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(14);

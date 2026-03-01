@@ -455,8 +455,30 @@
         <div class="toast" id="toast"></div>
     </div>
 
+    <script src="config.js"></script>
     <script src="app.js"></script>
     <script>
+        // Aplicar configuración de marca
+        (function applyConfig() {
+            // Logo
+            const logoSya = document.querySelector('.logo-sya');
+            const logoMotor = document.querySelector('.logo-motor');
+            const logoAppName = document.querySelector('.logo-app-name');
+            if (logoSya) logoSya.textContent = CONFIG.empresaNombre;
+            if (logoMotor) logoMotor.textContent = CONFIG.empresaSubtitulo;
+            if (logoAppName) logoAppName.textContent = CONFIG.appNombre;
+
+            // Título de la página
+            document.title = `${CONFIG.appNombre} — ${CONFIG.empresaNombre} ${CONFIG.empresaSubtitulo}`;
+
+            // Colores corporativos via CSS custom properties
+            const root = document.documentElement;
+            root.style.setProperty('--primary', CONFIG.colorPrimario);
+            root.style.setProperty('--primary-dark', CONFIG.colorPrimarioOscuro);
+            root.style.setProperty('--primary-light', CONFIG.colorPrimarioClaro);
+            root.style.setProperty('--primary-rgb', CONFIG.colorPrimarioRGB);
+        })();
+
         // Registrar Service Worker para PWA
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
