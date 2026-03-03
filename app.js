@@ -149,7 +149,40 @@ document.addEventListener('DOMContentLoaded', () => {
     resetWizard();
     showSection('wizard');
   });
+
+  // Migrate local data to Airtable (one-time)
+  migrateLocalToAirtable();
 });
+
+async function migrateLocalToAirtable() {
+  if (localStorage.getItem('airtable_migrated')) return;
+
+  const localList = getTasaciones();
+  if (localList.length === 0) {
+    localStorage.setItem('airtable_migrated', '1');
+    return;
+  }
+
+  // Get what's already in Airtable
+  const remoteList = await airtableGetAll();
+  if (!remoteList) return; // no connection, try later
+
+  const remoteIds = new Set(remoteList.map(r => r.tasacion_id || r.id));
+
+  let migrated = 0;
+  for (const t of localList) {
+    if (!remoteIds.has(t.id)) {
+      const result = await airtableSave(t);
+      if (result) migrated++;
+    }
+  }
+
+  localStorage.setItem('airtable_migrated', '1');
+  if (migrated > 0) {
+    showToast(`${migrated} tasaciones sincronizadas con la nube`, 'success');
+    renderListado(); // refresh to show all
+  }
+}
 
 // ── Section Navigation ──
 function showSection(name) {
