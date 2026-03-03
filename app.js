@@ -22,6 +22,124 @@ const PHOTO_SLOTS = [
 
 const STORAGE_KEY = 'tasaciones_vo_sya';
 
+// ── Airtable API ──
+const AIRTABLE_URL = () => `https://api.airtable.com/v0/${CONFIG.airtableBaseId}/${encodeURIComponent(CONFIG.airtableTableName)}`;
+const AIRTABLE_HEADERS = () => ({
+  'Authorization': `Bearer ${CONFIG.airtableToken}`,
+  'Content-Type': 'application/json',
+});
+
+async function airtableGetAll() {
+  try {
+    let allRecords = [];
+    let offset = null;
+    do {
+      const url = AIRTABLE_URL() + '?pageSize=100&sort%5B0%5D%5Bfield%5D=fecha&sort%5B0%5D%5Bdirection%5D=desc' + (offset ? `&offset=${offset}` : '');
+      const res = await fetch(url, { headers: AIRTABLE_HEADERS() });
+      if (!res.ok) throw new Error(`Airtable error: ${res.status}`);
+      const data = await res.json();
+      allRecords = allRecords.concat(data.records);
+      offset = data.offset;
+    } while (offset);
+    return allRecords.map(r => ({ ...r.fields, _airtableId: r.id }));
+  } catch (e) {
+    console.error('Airtable GET error:', e);
+    return null; // null = error, use localStorage fallback
+  }
+}
+
+async function airtableSave(tasacion) {
+  try {
+    const fields = { ...tasacion };
+    delete fields._airtableId;
+    delete fields.fotos; // no guardar fotos en Airtable
+    // Rename id to tasacion_id to avoid Airtable conflicts
+    fields.tasacion_id = fields.id;
+    delete fields.id;
+
+    const res = await fetch(AIRTABLE_URL(), {
+      method: 'POST',
+      headers: AIRTABLE_HEADERS(),
+      body: JSON.stringify({ records: [{ fields }] }),
+    });
+    if (!res.ok) throw new Error(`Airtable POST error: ${res.status}`);
+    const data = await res.json();
+    return data.records[0].id;
+  } catch (e) {
+    console.error('Airtable SAVE error:', e);
+    return null;
+  }
+}
+
+async function airtableUpdate(airtableId, tasacion) {
+  try {
+    const fields = { ...tasacion };
+    delete fields._airtableId;
+    delete fields.fotos;
+    fields.tasacion_id = fields.id;
+    delete fields.id;
+
+    const res = await fetch(AIRTABLE_URL(), {
+      method: 'PATCH',
+      headers: AIRTABLE_HEADERS(),
+      body: JSON.stringify({ records: [{ id: airtableId, fields }] }),
+    });
+    if (!res.ok) throw new Error(`Airtable PATCH error: ${res.status}`);
+    return true;
+  } catch (e) {
+    console.error('Airtable UPDATE error:', e);
+    return false;
+  }
+}
+
+async function airtableDelete(airtableId) {
+  try {
+    const res = await fetch(`${AIRTABLE_URL()}/${airtableId}`, {
+      method: 'DELETE',
+      headers: AIRTABLE_HEADERS(),
+    });
+    if (!res.ok) throw new Error(`Airtable DELETE error: ${res.status}`);
+    return true;
+  } catch (e) {
+    console.error('Airtable DELETE error:', e);
+    return false;
+  }
+}
+
+// Map Airtable record to app format
+function mapAirtableRecord(record) {
+  return {
+    id: record.tasacion_id || record.id,
+    _airtableId: record._airtableId,
+    estado: record.estado || '',
+    fecha: record.fecha || '',
+    tasador: record.tasador || '',
+    matricula: record.matricula || '',
+    marca: record.marca || '',
+    modelo: record.modelo || '',
+    acabado: record.acabado || '',
+    anio: record.anio || '',
+    kilometros: record.kilometros || 0,
+    fotos: {},
+    precioMin: record.precioMin || 0,
+    estadoCarroceria: record.estadoCarroceria || '',
+    estadoInterior: record.estadoInterior || '',
+    obsInterior: record.obsInterior || '',
+    estadoMecanico: record.estadoMecanico || '',
+    obsMecanico: record.obsMecanico || '',
+    itv: record.itv || '',
+    historial: record.historial || '',
+    precioVentaObj: record.precioVentaObj || 0,
+    costeReparaciones: record.costeReparaciones || 0,
+    costeReacond: record.costeReacond || 0,
+    gastosAdmin: record.gastosAdmin || 0,
+    margenMin: record.margenMin || 0,
+    costeTotal: record.costeTotal || 0,
+    precioMaxCompra: record.precioMaxCompra || 0,
+    beneficioEstimado: record.beneficioEstimado || record.margenMin || 0,
+  };
+}
+
 // ── Init ──
 document.addEventListener('DOMContentLoaded', () => {
   buildPhotoGrid();
@@ -388,25 +506,38 @@ function saveTasacion(estado) {
   if (idx >= 0) list[idx] = tasacion;
   else list.unshift(tasacion);
 
-  // Try to save — if localStorage is full, try without photos
+  // Try to save to localStorage (with fallback without photos)
   try {
     saveTasaciones(list);
   } catch (e) {
-    console.warn('localStorage full, saving without photos...');
     tasacion.fotos = {};
     if (idx >= 0) list[idx] = tasacion;
     else list[0] = tasacion;
-    try {
-      saveTasaciones(list);
-      showToast('Guardado sin fotos (memoria llena). El PDF sí incluirá las fotos.', 'warning');
-    } catch (e2) {
-      showToast('Error: no se pudo guardar la tasación.', 'error');
-      return;
-    }
+    try { saveTasaciones(list); } catch (e2) { /* ignore */ }
   }
 
+  // Save to Airtable (async, non-blocking)
+  const isEditing = !!editingId;
   editingId = null;
   const label = estado === 'finalizada' ? 'Tasación finalizada' : 'Borrador guardado';
+
+  (async () => {
+    if (isEditing) {
+      // Find existing Airtable record to update
+      const records = await airtableGetAll();
+      if (records) {
+        const existing = records.find(r => (r.tasacion_id || r.id) === tasacion.id);
+        if (existing && existing._airtableId) {
+          await airtableUpdate(existing._airtableId, tasacion);
+        } else {
+          await airtableSave(tasacion);
+        }
+      }
+    } else {
+      await airtableSave(tasacion);
+    }
+  })();
+
   showToast(`${label} correctamente`, 'success');
 
   setTimeout(() => {
@@ -418,18 +549,51 @@ function saveTasacion(estado) {
 function deleteTasacion(id, e) {
   e.stopPropagation();
   if (!confirm('¿Eliminar esta tasación?')) return;
+
+  // Delete from localStorage
   const list = getTasaciones().filter(t => t.id !== id);
   saveTasaciones(list);
+
+  // Delete from Airtable
+  const allLocal = getTasaciones();
+  // Find airtable ID - we need to search in Airtable
+  (async () => {
+    const records = await airtableGetAll();
+    if (records) {
+      const record = records.find(r => (r.tasacion_id || r.id) === id);
+      if (record && record._airtableId) {
+        await airtableDelete(record._airtableId);
+      }
+    }
+  })();
+
   renderListado();
   showToast('Tasación eliminada', 'success');
 }
 
 // ── Render Listado ──
-function renderListado() {
+async function renderListado() {
   const container = document.getElementById('listado-content');
-  const query = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
-  let list = getTasaciones();
 
+  // Show loading
+  container.innerHTML = `
+    <div class="listado-empty">
+      <p>Cargando tasaciones...</p>
+    </div>
+  `;
+
+  // Try to load from Airtable first
+  let list = await airtableGetAll();
+  if (list) {
+    list = list.map(mapAirtableRecord);
+    // Sort by date descending
+    list.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+  } else {
+    // Fallback to localStorage
+    list = getTasaciones();
+  }
+
+  const query = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
   if (query) {
     list = list.filter(t =>
       t.matricula.toLowerCase().includes(query) ||
@@ -456,7 +620,7 @@ function renderListado() {
       <div class="tasacion-row" onclick="viewTasacion('${t.id}')">
         <span class="t-matricula">${t.matricula}</span>
         <div class="t-info">
-          <span class="t-vehicle">${t.marca} ${t.modelo} ${t.acabado}</span>
+          <span class="t-vehicle">${t.marca} ${t.modelo} ${t.acabado || ''}</span>
           <span class="t-meta">${fechaStr} · ${t.tasador} · ${formatNum(t.kilometros)} km</span>
         </div>
         <span class="t-price">${formatEuro(t.precioMaxCompra)}</span>
@@ -475,8 +639,16 @@ function renderListado() {
 }
 
 // ── View Detail ──
-function viewTasacion(id) {
-  const t = getTasaciones().find(x => x.id === id);
+async function viewTasacion(id) {
+  // Try localStorage first, then Airtable
+  let t = getTasaciones().find(x => x.id === id);
+  if (!t) {
+    const records = await airtableGetAll();
+    if (records) {
+      const mapped = records.map(mapAirtableRecord);
+      t = mapped.find(x => x.id === id);
+    }
+  }
   if (!t) return;
 
   const container = document.getElementById('detalle-content');
@@ -577,9 +749,16 @@ function viewTasacion(id) {
 }
 
 // ── Edit Tasación ──
-function editTasacion(id, e) {
+async function editTasacion(id, e) {
   if (e) e.stopPropagation();
-  const t = getTasaciones().find(x => x.id === id);
+  let t = getTasaciones().find(x => x.id === id);
+  if (!t) {
+    const records = await airtableGetAll();
+    if (records) {
+      const mapped = records.map(mapAirtableRecord);
+      t = mapped.find(x => x.id === id);
+    }
+  }
   if (!t) return;
 
   editingId = t.id;

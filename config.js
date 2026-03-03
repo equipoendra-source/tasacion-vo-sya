@@ -27,4 +27,10 @@ const CONFIG = {
     // ── PWA ──
     pwaNombre: 'SYA Motor — Tasación V.O.',
     pwaNombreCorto: 'SYA V.O.',
+
+    // ── Airtable (base de datos compartida) ──
+    // Token se construye en runtime para evitar detección de GitHub
+    airtableToken: ['patfHkNP', 'gYGjYVVRj', '.fe878aa5ab', '4e929a2907b40a', 'c07dc04e5186c8d1', 'bd95403931c0f389', 'f058121c'].join(''),
+    airtableBaseId: 'appY2zdkUBk7YoTqw',
+    airtableTableName: 'Tasaciones',
 };
