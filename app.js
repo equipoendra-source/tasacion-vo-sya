@@ -155,11 +155,12 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function migrateLocalToAirtable() {
-  if (localStorage.getItem('airtable_migrated')) return;
+  const MIGRATION_KEY = 'airtable_migrated_v2';
+  if (localStorage.getItem(MIGRATION_KEY)) return;
 
   const localList = getTasaciones();
   if (localList.length === 0) {
-    localStorage.setItem('airtable_migrated', '1');
+    localStorage.setItem(MIGRATION_KEY, '1');
     return;
   }
 
@@ -177,7 +178,7 @@ async function migrateLocalToAirtable() {
     }
   }
 
-  localStorage.setItem('airtable_migrated', '1');
+  localStorage.setItem(MIGRATION_KEY, '1');
   if (migrated > 0) {
     showToast(`${migrated} tasaciones sincronizadas con la nube`, 'success');
     renderListado(); // refresh to show all
