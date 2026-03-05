@@ -182,6 +182,58 @@ async function migrateLocalToAirtable() {
   if (migrated > 0) {
     showToast(`${migrated} tasaciones sincronizadas con la nube`, 'success');
     renderListado(); // refresh to show all
+  } else {
+    showToast('Todo ya estaba sincronizado', 'info');
+  }
+}
+
+// ── Force sync all local data to Airtable (manual button) ──
+async function forceSyncToAirtable() {
+  const btn = document.getElementById('nav-sync');
+  if (btn) btn.disabled = true;
+  showToast('Sincronizando...', 'info');
+
+  const localList = getTasaciones();
+  if (localList.length === 0) {
+    showToast('No hay tasaciones locales que sincronizar', 'info');
+    if (btn) btn.disabled = false;
+    renderListado();
+    return;
+  }
+
+  // Get remote records to avoid duplicates
+  const remoteList = await airtableGetAll();
+  if (!remoteList) {
+    showToast('Error de conexión con la nube', 'error');
+    if (btn) btn.disabled = false;
+    return;
+  }
+
+  const remoteIds = new Set(remoteList.map(r => r.tasacion_id || r.id).filter(Boolean));
+
+  let synced = 0;
+  let skipped = 0;
+  for (const t of localList) {
+    if (remoteIds.has(t.id)) {
+      skipped++;
+      continue;
+    }
+    const result = await airtableSave(t);
+    if (result) synced++;
+  }
+
+  // Reset migration key so future auto-migration also re-runs
+  localStorage.setItem('airtable_migrated_v2', '1');
+  if (btn) btn.disabled = false;
+
+  if (synced > 0) {
+    showToast(`✓ ${synced} tasaciones subidas a la nube`, 'success');
+    renderListado();
+  } else if (skipped > 0) {
+    showToast('Todo ya estaba sincronizado en la nube', 'success');
+    renderListado();
+  } else {
+    showToast('No se pudo sincronizar', 'error');
   }
 }
 
