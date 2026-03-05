@@ -692,67 +692,70 @@ function deleteTasacion(id, e) {
 async function renderListado() {
   const container = document.getElementById('listado-content');
 
-  // Show loading
-  container.innerHTML = `
-    <div class="listado-empty">
-      <p>Cargando tasaciones...</p>
-    </div>
-  `;
+  // Helper to render list to DOM
+  function renderItems(list) {
+    const query = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
+    let filtered = list;
+    if (query) {
+      filtered = list.filter(t =>
+        (t.matricula || '').toLowerCase().includes(query) ||
+        (t.marca || '').toLowerCase().includes(query) ||
+        (t.modelo || '').toLowerCase().includes(query) ||
+        (t.tasador || '').toLowerCase().includes(query)
+      );
+    }
 
-  // Try to load from Airtable first
-  let list = await airtableGetAll();
-  if (list) {
-    list = list.map(mapAirtableRecord);
-    // Sort by date descending
-    list.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-  } else {
-    // Fallback to localStorage
-    list = getTasaciones();
-  }
-
-  const query = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
-  if (query) {
-    list = list.filter(t =>
-      t.matricula.toLowerCase().includes(query) ||
-      t.marca.toLowerCase().includes(query) ||
-      t.modelo.toLowerCase().includes(query) ||
-      t.tasador.toLowerCase().includes(query)
-    );
-  }
-
-  if (list.length === 0) {
-    container.innerHTML = `
-      <div class="listado-empty">
-        <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="6" y="8" width="36" height="28" rx="4"/><path d="M6 16h36M16 8v8M32 8v8"/></svg>
-        <p>${query ? 'No se encontraron tasaciones con esa búsqueda.' : 'Aún no hay tasaciones guardadas.'}</p>
-      </div>
-    `;
-    return;
-  }
-
-  container.innerHTML = list.map(t => {
-    const fecha = new Date(t.fecha);
-    const fechaStr = fecha.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-    return `
-      <div class="tasacion-row" onclick="viewTasacion('${t.id}')">
-        <span class="t-matricula">${t.matricula}</span>
-        <div class="t-info">
-          <span class="t-vehicle">${t.marca} ${t.modelo} ${t.acabado || ''}</span>
-          <span class="t-meta">${fechaStr} · ${t.tasador} · ${formatNum(t.kilometros)} km</span>
+    if (filtered.length === 0) {
+      container.innerHTML = `
+        <div class="listado-empty">
+          <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="6" y="8" width="36" height="28" rx="4"/><path d="M6 16h36M16 8v8M32 8v8"/></svg>
+          <p>${query ? 'No se encontraron tasaciones con esa búsqueda.' : 'Aún no hay tasaciones guardadas.'}</p>
         </div>
-        <span class="t-price">${formatEuro(t.precioMaxCompra)}</span>
-        <span class="t-status ${t.estado}">${t.estado}</span>
-        <div class="t-actions">
-          <button title="Editar" onclick="editTasacion('${t.id}', event)">
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z"/></svg>
-          </button>
-          <button class="btn-del" title="Eliminar" onclick="deleteTasacion('${t.id}', event)">
-            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h10M5 5v8a1 1 0 001 1h4a1 1 0 001-1V5M7 5V4a1 1 0 011-1h0a1 1 0 011 1v1"/></svg>
-          </button>
+      `;
+      return;
+    }
+
+    container.innerHTML = filtered.map(t => {
+      const fecha = new Date(t.fecha);
+      const fechaStr = fecha.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+      return `
+        <div class="tasacion-row" onclick="viewTasacion('${t.id}')">
+          <span class="t-matricula">${t.matricula}</span>
+          <div class="t-info">
+            <span class="t-vehicle">${t.marca} ${t.modelo} ${t.acabado || ''}</span>
+            <span class="t-meta">${fechaStr} · ${t.tasador} · ${formatNum(t.kilometros)} km</span>
+          </div>
+          <span class="t-price">${formatEuro(t.precioMaxCompra)}</span>
+          <span class="t-status ${t.estado}">${t.estado}</span>
+          <div class="t-actions">
+            <button title="Editar" onclick="editTasacion('${t.id}', event)">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M11.5 2.5l2 2L5 13H3v-2L11.5 2.5z"/></svg>
+            </button>
+            <button class="btn-del" title="Eliminar" onclick="deleteTasacion('${t.id}', event)">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 5h10M5 5v8a1 1 0 001 1h4a1 1 0 001-1V5M7 5V4a1 1 0 011-1h0a1 1 0 011 1v1"/></svg>
+            </button>
+          </div>
         </div>
-      </div>
-    `;
-  }).join('');
+      `;
+    }).join('');
+  }
+
+  // INSTANT: show local data immediately
+  const localList = getTasaciones();
+  localList.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+  renderItems(localList);
+
+  // ASYNC: merge with Airtable records
+  const remoteRaw = await airtableGetAll();
+  if (remoteRaw) {
+    const remote = remoteRaw.map(mapAirtableRecord);
+    // Merge: start with remote, add local ones not in remote (not yet synced)
+    const remoteIds = new Set(remote.map(t => t.id));
+    const localOnly = localList.filter(t => !remoteIds.has(t.id));
+    const merged = [...remote, ...localOnly];
+    merged.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    renderItems(merged);
+  }
 }
 
 // ── View Detail ──
