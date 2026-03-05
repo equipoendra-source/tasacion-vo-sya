@@ -34,14 +34,23 @@ async function airtableGetAll() {
     let allRecords = [];
     let offset = null;
     do {
-      const url = AIRTABLE_URL() + '?pageSize=100&sort%5B0%5D%5Bfield%5D=fecha&sort%5B0%5D%5Bdirection%5D=desc' + (offset ? `&offset=${offset}` : '');
+      const url = AIRTABLE_URL() + '?pageSize=100' + (offset ? `&offset=${offset}` : '');
       const res = await fetch(url, { headers: AIRTABLE_HEADERS() });
       if (!res.ok) throw new Error(`Airtable error: ${res.status}`);
       const data = await res.json();
       allRecords = allRecords.concat(data.records);
       offset = data.offset;
     } while (offset);
-    return allRecords.map(r => ({ ...r.fields, _airtableId: r.id }));
+    // Deduplicate by tasacion_id (keep latest)
+    const seen = new Set();
+    const deduped = [];
+    for (const r of allRecords) {
+      const tid = r.fields.tasacion_id;
+      if (tid && seen.has(tid)) continue;
+      if (tid) seen.add(tid);
+      deduped.push(r);
+    }
+    return deduped.map(r => ({ ...r.fields, _airtableId: r.id }));
   } catch (e) {
     console.error('Airtable GET error:', e);
     return null; // null = error, use localStorage fallback
