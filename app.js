@@ -56,11 +56,13 @@ async function airtableSave(tasacion) {
     // Rename id to tasacion_id to avoid Airtable conflicts
     fields.tasacion_id = fields.id;
     delete fields.id;
+    // Remove fields not in Airtable schema
+    delete fields.beneficioEstimado;
 
     // Coerce numeric fields so Airtable doesn't complain about type mismatches
     const numericFields = ['anio', 'kilometros', 'precioMin', 'precioVentaObj',
       'costeReparaciones', 'costeReacond', 'gastosAdmin', 'margenMin',
-      'costeTotal', 'precioMaxCompra', 'beneficioEstimado'];
+      'costeTotal', 'precioMaxCompra'];
     numericFields.forEach(f => { if (fields[f] !== undefined) fields[f] = Number(fields[f]) || 0; });
 
     // Remove empty optional text fields to avoid issues
@@ -91,10 +93,11 @@ async function airtableUpdate(airtableId, tasacion) {
     delete fields.fotos;
     fields.tasacion_id = fields.id;
     delete fields.id;
+    delete fields.beneficioEstimado;
 
     const numericFields = ['anio', 'kilometros', 'precioMin', 'precioVentaObj',
       'costeReparaciones', 'costeReacond', 'gastosAdmin', 'margenMin',
-      'costeTotal', 'precioMaxCompra', 'beneficioEstimado'];
+      'costeTotal', 'precioMaxCompra'];
     numericFields.forEach(f => { if (fields[f] !== undefined) fields[f] = Number(fields[f]) || 0; });
     ['obsInterior', 'obsMecanico'].forEach(f => { if (!fields[f]) delete fields[f]; });
 
