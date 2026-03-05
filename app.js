@@ -57,12 +57,25 @@ async function airtableSave(tasacion) {
     fields.tasacion_id = fields.id;
     delete fields.id;
 
+    // Coerce numeric fields so Airtable doesn't complain about type mismatches
+    const numericFields = ['anio', 'kilometros', 'precioMin', 'precioVentaObj',
+      'costeReparaciones', 'costeReacond', 'gastosAdmin', 'margenMin',
+      'costeTotal', 'precioMaxCompra', 'beneficioEstimado'];
+    numericFields.forEach(f => { if (fields[f] !== undefined) fields[f] = Number(fields[f]) || 0; });
+
+    // Remove empty optional text fields to avoid issues
+    ['obsInterior', 'obsMecanico'].forEach(f => { if (!fields[f]) delete fields[f]; });
+
     const res = await fetch(AIRTABLE_URL(), {
       method: 'POST',
       headers: AIRTABLE_HEADERS(),
       body: JSON.stringify({ records: [{ fields }] }),
     });
-    if (!res.ok) throw new Error(`Airtable POST error: ${res.status}`);
+    if (!res.ok) {
+      const errBody = await res.json().catch(() => ({}));
+      console.error('Airtable POST error:', res.status, errBody);
+      throw new Error(`Airtable POST error: ${res.status}`);
+    }
     const data = await res.json();
     return data.records[0].id;
   } catch (e) {
@@ -78,6 +91,12 @@ async function airtableUpdate(airtableId, tasacion) {
     delete fields.fotos;
     fields.tasacion_id = fields.id;
     delete fields.id;
+
+    const numericFields = ['anio', 'kilometros', 'precioMin', 'precioVentaObj',
+      'costeReparaciones', 'costeReacond', 'gastosAdmin', 'margenMin',
+      'costeTotal', 'precioMaxCompra', 'beneficioEstimado'];
+    numericFields.forEach(f => { if (fields[f] !== undefined) fields[f] = Number(fields[f]) || 0; });
+    ['obsInterior', 'obsMecanico'].forEach(f => { if (!fields[f]) delete fields[f]; });
 
     const res = await fetch(AIRTABLE_URL(), {
       method: 'PATCH',

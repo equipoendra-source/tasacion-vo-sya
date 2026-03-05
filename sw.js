@@ -1,5 +1,5 @@
 // SYA Motor — Tasación VO · Service Worker
-const CACHE_NAME = 'tasacion-vo-sya-v8';
+const CACHE_NAME = 'tasacion-vo-sya-v9';
 const ASSETS = [
     './',
     './index.html',
