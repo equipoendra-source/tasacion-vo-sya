@@ -279,7 +279,8 @@ function showSection(name) {
   } else if (name === 'listado') {
     document.getElementById('section-listado').classList.add('active');
     document.getElementById('nav-listado').classList.add('active');
-    renderListado();
+    // Siempre refrescar de la nube al entrar en el historial
+    renderListado(true); 
   } else if (name === 'detalle') {
     document.getElementById('section-detalle').classList.add('active');
     document.getElementById('nav-listado').classList.add('active');
@@ -689,11 +690,12 @@ function deleteTasacion(id, e) {
 }
 
 // ── Render Listado ──
-async function renderListado() {
+// ── Render Listado ──
+async function renderListado(forceCloudFetch = false) {
   const container = document.getElementById('listado-content');
 
   // Helper to render list to DOM
-  function renderItems(list) {
+  function renderItems(list, isCloudLoading = false) {
     const query = (document.getElementById('search-input')?.value || '').toLowerCase().trim();
     let filtered = list;
     if (query) {
@@ -705,7 +707,7 @@ async function renderListado() {
       );
     }
 
-    if (filtered.length === 0) {
+    if (filtered.length === 0 && !isCloudLoading) {
       container.innerHTML = `
         <div class="listado-empty">
           <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="6" y="8" width="36" height="28" rx="4"/><path d="M6 16h36M16 8v8M32 8v8"/></svg>
@@ -715,7 +717,7 @@ async function renderListado() {
       return;
     }
 
-    container.innerHTML = filtered.map(t => {
+    let html = filtered.map(t => {
       const fecha = new Date(t.fecha);
       const fechaStr = fecha.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) + ' ' + fecha.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
       return `
@@ -738,23 +740,38 @@ async function renderListado() {
         </div>
       `;
     }).join('');
+
+    if (isCloudLoading) {
+      html = `
+        <div class="cloud-sync-status">
+          <div class="spinner-small"></div>
+          Sincronizando con la nube...
+        </div>
+        ` + html;
+    }
+    container.innerHTML = html;
   }
 
   // INSTANT: show local data immediately
   const localList = getTasaciones();
   localList.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-  renderItems(localList);
+  renderItems(localList, forceCloudFetch);
 
   // ASYNC: merge with Airtable records
-  const remoteRaw = await airtableGetAll();
-  if (remoteRaw) {
-    const remote = remoteRaw.map(mapAirtableRecord);
-    // Merge: start with remote, add local ones not in remote (not yet synced)
-    const remoteIds = new Set(remote.map(t => t.id));
-    const localOnly = localList.filter(t => !remoteIds.has(t.id));
-    const merged = [...remote, ...localOnly];
-    merged.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-    renderItems(merged);
+  if (forceCloudFetch || localList.length > 0) {
+    const remoteRaw = await airtableGetAll();
+    if (remoteRaw) {
+      const remote = remoteRaw.map(mapAirtableRecord);
+      // Merge: start with remote, add local ones not in remote (not yet synced)
+      const remoteIds = new Set(remote.map(t => t.id));
+      const localOnly = localList.filter(t => !remoteIds.has(t.id));
+      const merged = [...remote, ...localOnly];
+      merged.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+      renderItems(merged, false);
+    } else if (forceCloudFetch) {
+      // Si falló la nube pero forzamos aviso, quitar aviso de carga
+      renderItems(localList, false);
+    }
   }
 }
 
