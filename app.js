@@ -656,7 +656,12 @@ function saveTasacion(estado) {
         }
       }
     } else {
-      await airtableSave(tasacion);
+      const success = await airtableSave(tasacion);
+      if (success) {
+        showToast('✓ Sincronizado con éxito', 'success');
+      } else {
+        showToast('Error de sincronización con la nube', 'error');
+      }
     }
   })();
 
