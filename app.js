@@ -41,16 +41,20 @@ async function airtableGetAll() {
       allRecords = allRecords.concat(data.records);
       offset = data.offset;
     } while (offset);
-    // Deduplicate by tasacion_id (keep latest)
-    const seen = new Set();
-    const deduped = [];
+
+    // DEDUPLICACIÓN INTELIGENTE: Si hay repetidos, quedarnos SIEMPRE con el más reciente
+    const map = new Map(); // id -> record fields
     for (const r of allRecords) {
-      const tid = r.fields.tasacion_id;
-      if (tid && seen.has(tid)) continue;
-      if (tid) seen.add(tid);
-      deduped.push(r);
+      const fields = r.fields;
+      const tid = fields.tasacion_id || r.id;
+      const existing = map.get(tid);
+      
+      if (!existing || new Date(fields.fecha) > new Date(existing.fecha)) {
+        map.set(tid, { ...fields, _airtableId: r.id });
+      }
     }
-    return deduped.map(r => ({ ...r.fields, _airtableId: r.id }));
+    
+    return Array.from(map.values());
   } catch (e) {
     console.error('Airtable GET error:', e);
     return null; // null = error, use localStorage fallback
@@ -755,23 +759,24 @@ async function renderListado(forceCloudFetch = false) {
   // INSTANT: show local data immediately
   const localList = getTasaciones();
   localList.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-  renderItems(localList, forceCloudFetch);
+  renderItems(localList, true); // Mostrar aviso de carga mientras consultamos
 
-  // ASYNC: merge with Airtable records
-  if (forceCloudFetch || localList.length > 0) {
-    const remoteRaw = await airtableGetAll();
-    if (remoteRaw) {
-      const remote = remoteRaw.map(mapAirtableRecord);
-      // Merge: start with remote, add local ones not in remote (not yet synced)
-      const remoteIds = new Set(remote.map(t => t.id));
-      const localOnly = localList.filter(t => !remoteIds.has(t.id));
-      const merged = [...remote, ...localOnly];
-      merged.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-      renderItems(merged, false);
-    } else if (forceCloudFetch) {
-      // Si falló la nube pero forzamos aviso, quitar aviso de carga
-      renderItems(localList, false);
-    }
+  // ASYNC: SIEMPRE consultar Airtable para tener el historial compartido real
+  const remoteRaw = await airtableGetAll();
+  if (remoteRaw) {
+    const remote = remoteRaw.map(mapAirtableRecord);
+    
+    // Unir local y remoto: El remoto es la fuente de verdad (Airtable)
+    // Pero si algo local no está en el remoto, lo añadimos (pendientes de subir)
+    const remoteIds = new Set(remote.map(t => t.id));
+    const localOnly = localList.filter(t => !remoteIds.has(t.id));
+    const merged = [...remote, ...localOnly];
+    
+    merged.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    renderItems(merged, false);
+  } else {
+    // Si no hay red o Airtable falla, nos quedamos con lo local
+    renderItems(localList, false);
   }
 }
 
